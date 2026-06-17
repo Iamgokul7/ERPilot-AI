@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ERPilot AI Inventory</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; font-family: 'Inter', sans-serif; }
+body { margin: 0; background: #000; color: #fff; }
+.sidebar { position: fixed; inset: 0 auto 0 0; width: 260px; background: #111; border-right: 1px solid #262626; padding: 30px; }
+.logo { font-size: 1.8rem; font-weight: 800; margin-bottom: 50px; }
+.menu-item { display: block; color: #d4d4d4; text-decoration: none; padding: 12px 14px; border-radius: 8px; margin-bottom: 8px; }
+.menu-item:hover, .menu-item.active { background: #1a1a1a; color: #fff; }
+.main-content { margin-left: 260px; padding: 40px; }
+.topbar { display: flex; justify-content: space-between; gap: 18px; align-items: center; margin-bottom: 30px; }
+.page-title { font-size: 2rem; font-weight: 700; }
+.section-panel, .metric-card { background: #111; border: 1px solid #262626; border-radius: 8px; }
+.section-panel { padding: 26px; }
+.metric-card { padding: 22px; }
+.metric-value { font-size: 1.8rem; font-weight: 800; line-height: 1; }
+.metric-label { color: #a3a3a3; margin-top: 8px; }
+.form-control { background: #171717; border: 1px solid #303030; color: #fff; min-height: 48px; border-radius: 8px; }
+.form-control:focus { background: #171717; border-color: #737373; box-shadow: none; color: #fff; }
+.form-label { color: #d4d4d4; font-weight: 500; }
+.btn { border-radius: 8px; font-weight: 600; }
+.table { --bs-table-bg: transparent; --bs-table-color: #fff; --bs-table-border-color: #262626; margin-bottom: 0; }
+.table thead th { color: #a3a3a3; font-size: 0.78rem; font-weight: 700; text-transform: uppercase; }
+.table tbody td { color: #e5e5e5; vertical-align: middle; }
+.badge-low-stock { background: #78350f; color: #fef3c7; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; }
+@media (max-width: 900px) {
+    .sidebar { position: static; width: 100%; height: auto; }
+    .main-content { margin-left: 0; padding: 24px; }
+}
+</style>
+</head>
+<body>
+{% include 'layouts/sidebar.html' %}
+<main class="main-content">
+{% set active_page = 'Inventory' %}
+{% include 'layouts/topbar.html' %}
+
+    <div class="row g-4 mb-4">
+        <div class="col-md-4">
+            <div class="metric-card">
+                <div class="metric-value">{{ total_products }}</div>
+                <div class="metric-label">Total Products</div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="metric-card">
+                <div class="metric-value text-success">{{ total_inventory_value }}</div>
+                <div class="metric-label">Total Stock Value</div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="metric-card" style="border-color: {% if low_stock_count > 0 %}#d97706{% else %}#262626{% endif %};">
+                <div class="metric-value {% if low_stock_count > 0 %}text-warning{% endif %}">{{ low_stock_count }}</div>
+                <div class="metric-label">Low Stock Alerts</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        {% if session.get('role') in ['admin', 'manager'] or edit_product %}
+        <div class="col-xl-4">
+            <section class="section-panel">
+                <h4 class="mb-4">{{ "Edit Product" if edit_product else "Add New Product" }}</h4>
+                <form method="POST" action="{{ url_for('inventory.update_product', record_id=edit_product.id) if edit_product else url_for('inventory.inventory') }}">
+                    <div class="mb-3">
+                        <label class="form-label">Product Name</label>
+                        <input type="text" name="product_name" class="form-control" value="{{ edit_product.product_name if edit_product else '' }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">SKU</label>
+                        <input type="text" name="sku" class="form-control" value="{{ edit_product.sku if edit_product else '' }}" required placeholder="e.g., SKU-MBP-16">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Category</label>
+                        <input type="text" name="category" class="form-control" value="{{ edit_product.category if edit_product else '' }}" placeholder="e.g., Electronics, Furniture">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Quantity</label>
+                        <input type="number" name="quantity" class="form-control" value="{{ edit_product.quantity if edit_product else 0 }}" required min="0">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Unit Price ($)</label>
+                        <input type="number" step="0.01" name="unit_price" class="form-control" value="{{ edit_product.unit_price if edit_product else 0.0 }}" required min="0">
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label">Reorder Level</label>
+                        <input type="number" name="reorder_level" class="form-control" value="{{ edit_product.reorder_level if edit_product else 10 }}" min="0">
+                    </div>
+                    <button type="submit" class="btn btn-light w-100">Save Product</button>
+                    {% if edit_product %}
+                    <a href="/inventory" class="btn btn-outline-light w-100 mt-2">Cancel</a>
+                    {% endif %}
+                </form>
+            </section>
+        </div>
+        {% endif %}
+
+        <div class="{% if session.get('role') in ['admin', 'manager'] or edit_product %}col-xl-8{% else %}col-xl-12{% endif %}">
+            <section class="section-panel">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h4 class="mb-0">Product Catalog</h4>
+                    <form method="GET" action="/inventory" class="d-flex gap-2" style="max-width: 300px;">
+                        <input type="text" name="search" class="form-control min-vh-0 py-1 px-3" placeholder="Search product..." value="{{ search }}">
+                        <button type="submit" class="btn btn-outline-light btn-sm px-3">Search</button>
+                    </form>
+                </div>
+                <div class="table-responsive">
+                    <table class="table align-middle">
+                        <thead>
+                            <tr>
+                                <th>Product Name</th>
+                                <th>SKU</th>
+                                <th>Category</th>
+                                <th>Qty</th>
+                                <th>Price</th>
+                                <th>Status</th>
+                                <th class="text-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for product in products %}
+                            <tr>
+                                <td class="fw-bold">{{ product.product_name }}</td>
+                                <td><code>{{ product.sku }}</code></td>
+                                <td>{{ product.category or "-" }}</td>
+                                <td>{{ product.quantity }}</td>
+                                <td>${{ "{:,.2f}".format(product.unit_price) }}</td>
+                                <td>
+                                    {% if product.quantity <= product.reorder_level %}
+                                    <span class="badge-low-stock">LOW STOCK</span>
+                                    {% else %}
+                                    <span class="text-success" style="font-size: 0.85rem;">IN STOCK</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end">
+                                    <div class="d-flex justify-content-end gap-2">
+                                        {% if session.get('role') in ['admin', 'manager'] %}
+                                        <a href="{{ url_for('inventory.edit_product', record_id=product.id) }}" class="btn btn-sm btn-outline-light">Edit</a>
+                                        {% endif %}
+                                        {% if session.get('role') == 'admin' %}
+                                        <form method="POST" action="{{ url_for('inventory.delete_product', record_id=product.id) }}" onsubmit="return confirm('Delete this product from catalog?');">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+                                        </form>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                            {% if not products %}
+                            <tr>
+                                <td colspan="7" class="text-center text-secondary py-4">No products found.</td>
+                            </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+    </div>
+</main>
+</body>
+</html>

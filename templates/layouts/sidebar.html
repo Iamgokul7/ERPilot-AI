@@ -1,0 +1,18 @@
+<aside class="sidebar">
+    <div class="logo">ERPilot AI</div>
+
+    <a href="/dashboard" class="menu-item {% if request.path == '/dashboard' %}active{% endif %}">Dashboard</a>
+    <a href="/employees" class="menu-item {% if request.path == '/employees' %}active{% endif %}">Employees</a>
+    <a href="/inventory" class="menu-item {% if request.path == '/inventory' %}active{% endif %}">Inventory</a>
+    <a href="/suppliers" class="menu-item {% if request.path == '/suppliers' %}active{% endif %}">Suppliers</a>
+    <a href="/sales" class="menu-item {% if request.path.startswith('/sales') %}active{% endif %}">Sales</a>
+    <a href="/ai-assistant" class="menu-item {% if request.path == '/ai-assistant' %}active{% endif %}">AI Assistant</a>
+    <a href="/reports" class="menu-item {% if request.path.startswith('/reports') %}active{% endif %}">Reports</a>
+    
+    <a href="/logout" class="menu-item text-danger mt-auto">Logout</a>
+    
+    <div class="mt-4 pt-4 border-top border-secondary">
+        <div class="text-secondary small">Logged in as:</div>
+        <div class="fw-bold">{{ session.get('user_name', 'User') }}</div>
+    </div>
+</aside>

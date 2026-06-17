@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ERPilot AI Suppliers</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; font-family: 'Inter', sans-serif; }
+body { margin: 0; background: #000; color: #fff; }
+.sidebar { position: fixed; inset: 0 auto 0 0; width: 260px; background: #111; border-right: 1px solid #262626; padding: 30px; }
+.logo { font-size: 1.8rem; font-weight: 800; margin-bottom: 50px; }
+.menu-item { display: block; color: #d4d4d4; text-decoration: none; padding: 12px 14px; border-radius: 8px; margin-bottom: 8px; }
+.menu-item:hover, .menu-item.active { background: #1a1a1a; color: #fff; }
+.main-content { margin-left: 260px; padding: 40px; }
+.topbar { display: flex; justify-content: space-between; gap: 18px; align-items: center; margin-bottom: 30px; }
+.page-title { font-size: 2rem; font-weight: 700; }
+.section-panel, .metric-card { background: #111; border: 1px solid #262626; border-radius: 8px; }
+.section-panel { padding: 26px; }
+.metric-card { padding: 22px; }
+.metric-value { font-size: 1.8rem; font-weight: 800; line-height: 1; }
+.metric-label { color: #a3a3a3; margin-top: 8px; }
+.form-control { background: #171717; border: 1px solid #303030; color: #fff; min-height: 48px; border-radius: 8px; }
+.form-control:focus { background: #171717; border-color: #737373; box-shadow: none; color: #fff; }
+.form-label { color: #d4d4d4; font-weight: 500; }
+.btn { border-radius: 8px; font-weight: 600; }
+.table { --bs-table-bg: transparent; --bs-table-color: #fff; --bs-table-border-color: #262626; margin-bottom: 0; }
+.table thead th { color: #a3a3a3; font-size: 0.78rem; font-weight: 700; text-transform: uppercase; }
+.table tbody td { color: #e5e5e5; vertical-align: middle; }
+@media (max-width: 900px) {
+    .sidebar { position: static; width: 100%; height: auto; }
+    .main-content { margin-left: 0; padding: 24px; }
+}
+</style>
+</head>
+<body>
+{% include 'layouts/sidebar.html' %}
+<main class="main-content">
+{% set active_page = 'Suppliers' %}
+{% include 'layouts/topbar.html' %}
+
+    <div class="row g-4 mb-4">
+        <div class="col-md-6 col-lg-4">
+            <div class="metric-card">
+                <div class="metric-value">{{ total_suppliers }}</div>
+                <div class="metric-label">Total Suppliers</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        {% if session.get('role') in ['admin', 'manager'] or edit_supplier %}
+        <div class="col-xl-4">
+            <section class="section-panel">
+                <h4 class="mb-4">{{ "Edit Supplier" if edit_supplier else "Add New Supplier" }}</h4>
+                <form method="POST" action="{{ url_for('suppliers.update_supplier', record_id=edit_supplier.id) if edit_supplier else url_for('suppliers.suppliers') }}">
+                    <div class="mb-3">
+                        <label class="form-label">Supplier Name</label>
+                        <input type="text" name="supplier_name" class="form-control" value="{{ edit_supplier.supplier_name if edit_supplier else '' }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Contact Person</label>
+                        <input type="text" name="contact_person" class="form-control" value="{{ edit_supplier.contact_person if edit_supplier else '' }}">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Email</label>
+                        <input type="email" name="email" class="form-control" value="{{ edit_supplier.email if edit_supplier else '' }}">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Phone</label>
+                        <input type="text" name="phone" class="form-control" value="{{ edit_supplier.phone if edit_supplier else '' }}">
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label">Address</label>
+                        <input type="text" name="address" class="form-control" value="{{ edit_supplier.address if edit_supplier else '' }}">
+                    </div>
+                    <button type="submit" class="btn btn-light w-100">Save Supplier</button>
+                    {% if edit_supplier %}
+                    <a href="/suppliers" class="btn btn-outline-light w-100 mt-2">Cancel</a>
+                    {% endif %}
+                </form>
+            </section>
+        </div>
+        {% endif %}
+
+        <div class="{% if session.get('role') in ['admin', 'manager'] or edit_supplier %}col-xl-8{% else %}col-xl-12{% endif %}">
+            <section class="section-panel">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h4 class="mb-0">Suppliers Directory</h4>
+                    <form method="GET" action="/suppliers" class="d-flex gap-2" style="max-width: 300px;">
+                        <input type="text" name="search" class="form-control min-vh-0 py-1 px-3" placeholder="Search supplier..." value="{{ search }}">
+                        <button type="submit" class="btn btn-outline-light btn-sm px-3">Search</button>
+                    </form>
+                </div>
+                <div class="table-responsive">
+                    <table class="table align-middle">
+                        <thead>
+                            <tr>
+                                <th>Supplier Name</th>
+                                <th>Contact Person</th>
+                                <th>Email</th>
+                                <th>Phone</th>
+                                <th>Address</th>
+                                <th class="text-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for supplier in suppliers %}
+                            <tr>
+                                <td class="fw-bold">{{ supplier.supplier_name }}</td>
+                                <td>{{ supplier.contact_person or "-" }}</td>
+                                <td>{{ supplier.email or "-" }}</td>
+                                <td>{{ supplier.phone or "-" }}</td>
+                                <td>{{ supplier.address or "-" }}</td>
+                                <td class="text-end">
+                                    <div class="d-flex justify-content-end gap-2">
+                                        {% if session.get('role') in ['admin', 'manager'] %}
+                                        <a href="{{ url_for('suppliers.edit_supplier', record_id=supplier.id) }}" class="btn btn-sm btn-outline-light">Edit</a>
+                                        {% endif %}
+                                        {% if session.get('role') == 'admin' %}
+                                        <form method="POST" action="{{ url_for('suppliers.delete_supplier', record_id=supplier.id) }}" onsubmit="return confirm('Delete this supplier?');">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+                                        </form>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                            {% if not suppliers %}
+                            <tr>
+                                <td colspan="6" class="text-center text-secondary py-4">No suppliers found.</td>
+                            </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+    </div>
+</main>
+</body>
+</html>

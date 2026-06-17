@@ -1,0 +1,9 @@
+Flask
+google-genai
+python-dotenv
+openpyxl
+reportlab
+pytest
+pytest-cov
+Flask-SQLAlchemy
+psycopg2-binary

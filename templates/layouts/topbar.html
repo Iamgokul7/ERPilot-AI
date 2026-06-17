@@ -1,0 +1,106 @@
+<div class="topbar">
+    <div class="page-title">{{ active_page|default('Dashboard') }}</div>
+    <div class="d-flex align-items-center gap-3">
+        <!-- Notification Bell -->
+        <div class="dropdown">
+            <button class="btn btn-dark position-relative" type="button" id="notificationDropdown" data-bs-toggle="dropdown" aria-expanded="false" onclick="markNotificationsRead()">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-bell" viewBox="0 0 16 16">
+                    <path d="M8 16a2 2 0 0 0 2-2H6a2 2 0 0 0 2 2zM8 1.918l-.797.161A4.002 4.002 0 0 0 4 6c0 .628-.134 2.197-.459 3.742-.16.767-.376 1.566-.663 2.258h10.244c-.287-.692-.502-1.49-.663-2.258C12.134 8.197 12 6.628 12 6a4.002 4.002 0 0 0-3.203-3.92L8 1.917zM14.22 12c.223.447.481.801.78 1H1V13c0-.299.257-.653.48-1.1s.41-.95.55-1.5c.14-.55.23-1.12.3-1.7.07-.58.12-1.18.15-1.8.03-.62.03-1.22 0-1.82a5.002 5.002 0 0 1 12 0c-.03.6-.03 1.2 0 1.82.03.62.08 1.22.15 1.8.07.58.16 1.15.3 1.7.14.55.327 1.05.55 1.5z"/>
+                </svg>
+                <span id="notif-badge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none">
+                    0
+                </span>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end dropdown-menu-dark p-0" aria-labelledby="notificationDropdown" id="notif-list" style="width: 300px; max-height: 400px; overflow-y: auto; border: 1px solid #262626;">
+                <li><h6 class="dropdown-header border-bottom border-secondary py-3">Notifications</h6></li>
+                <li id="empty-notif" class="p-3 text-center text-secondary small">No new notifications</li>
+            </ul>
+        </div>
+        <div class="company-badge">{{ company_name }}</div>
+    </div>
+</div>
+
+<script>
+    async function fetchNotifications() {
+        try {
+            const response = await fetch('/notifications');
+            const data = await response.json();
+            const list = document.getElementById('notif-list');
+            const badge = document.getElementById('notif-badge');
+            const empty = document.getElementById('empty-notif');
+            
+            // Clear existing items (except header and empty)
+            const items = list.querySelectorAll('.notif-item');
+            items.forEach(el => el.remove());
+            
+            let unreadCount = 0;
+            if (data.length > 0) {
+                empty.classList.add('d-none');
+                data.forEach(n => {
+                    if (!n.is_read) unreadCount++;
+                    const li = document.createElement('li');
+                    li.className = 'notif-item border-bottom border-secondary';
+                    li.innerHTML = `
+                        <div class="p-3 ${n.is_read ? 'opacity-50' : 'fw-bold'}">
+                            <div class="small">${n.message}</div>
+                            <div class="text-secondary" style="font-size: 10px;">${new Date(n.created_at).toLocaleString()}</div>
+                        </div>
+                    `;
+                    list.appendChild(li);
+                });
+            } else {
+                empty.classList.remove('d-none');
+            }
+            
+            if (unreadCount > 0) {
+                badge.innerText = unreadCount;
+                badge.classList.remove('d-none');
+            } else {
+                badge.classList.add('d-none');
+            }
+        } catch (e) {}
+    }
+
+    async function markNotificationsRead() {
+        try {
+            await fetch('/notifications/mark-read', { method: 'POST' });
+            document.getElementById('notif-badge').classList.add('d-none');
+        } catch (e) {}
+    }
+
+    // Polling
+    fetchNotifications();
+    setInterval(fetchNotifications, 10000); // Check every 10s
+</script>
+
+<!-- Global Flash Messages Container -->
+<div class="flash-messages-container mt-3 px-1">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+        {% set alert_type = 'danger' if category in ['danger', 'error'] else ('warning' if category == 'warning' else 'success') %}
+        {% set border_color = '#450a0a' if alert_type == 'danger' else ('#78350f' if alert_type == 'warning' else '#064e3b') %}
+        {% set text_color = '#fecaca' if alert_type == 'danger' else ('#fef3c7' if alert_type == 'warning' else '#d1fae5') %}
+        <div class="alert alert-{{ alert_type }} alert-dismissible fade show p-3 mb-2 d-flex justify-content-between align-items-center" role="alert" style="border-radius: 8px; background-color: #111 !important; border: 1px solid {{ border_color }} !important; color: {{ text_color }} !important;">
+            <div style="font-weight: 500;">
+                {{ message }}
+            </div>
+            <button type="button" class="btn-close-alert" style="background: none; border: none; color: #a3a3a3; font-size: 1.5rem; line-height: 1; cursor: pointer; padding: 0 5px;" aria-label="Close">&times;</button>
+        </div>
+        {% endfor %}
+    {% endif %}
+    {% endwith %}
+</div>
+
+<script>
+    // Global vanilla JS to handle alert closing
+    document.addEventListener('click', function(e) {
+        if (e.target && (e.target.classList.contains('btn-close-alert') || e.target.innerText === '×')) {
+            const alert = e.target.closest('.alert');
+            if (alert) {
+                alert.style.opacity = '0';
+                setTimeout(() => alert.remove(), 150);
+            }
+        }
+    });
+</script>

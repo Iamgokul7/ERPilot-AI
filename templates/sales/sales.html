@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ERPilot AI Sales</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; font-family: 'Inter', sans-serif; }
+body { margin: 0; background: #000; color: #fff; }
+.sidebar { position: fixed; inset: 0 auto 0 0; width: 260px; background: #111; border-right: 1px solid #262626; padding: 30px; }
+.logo { font-size: 1.8rem; font-weight: 800; margin-bottom: 50px; }
+.menu-item { display: block; color: #d4d4d4; text-decoration: none; padding: 12px 14px; border-radius: 8px; margin-bottom: 8px; }
+.menu-item:hover, .menu-item.active { background: #1a1a1a; color: #fff; }
+.main-content { margin-left: 260px; padding: 40px; }
+.topbar { display: flex; justify-content: space-between; gap: 18px; align-items: center; margin-bottom: 30px; }
+.page-title { font-size: 2rem; font-weight: 700; }
+.section-panel, .metric-card { background: #111; border: 1px solid #262626; border-radius: 8px; }
+.section-panel { padding: 26px; }
+.metric-card { padding: 22px; }
+.metric-value { font-size: 1.8rem; font-weight: 800; line-height: 1; }
+.metric-label { color: #a3a3a3; margin-top: 8px; }
+.form-control, .form-select { background: #171717; border: 1px solid #303030; color: #fff; min-height: 48px; border-radius: 8px; }
+.form-control:focus, .form-select:focus { background: #171717; border-color: #737373; box-shadow: none; color: #fff; }
+.form-label { color: #d4d4d4; font-weight: 500; }
+.btn { border-radius: 8px; font-weight: 600; }
+.table { --bs-table-bg: transparent; --bs-table-color: #fff; --bs-table-border-color: #262626; margin-bottom: 0; }
+.table thead th { color: #a3a3a3; font-size: 0.78rem; font-weight: 700; text-transform: uppercase; }
+.table tbody td { color: #e5e5e5; vertical-align: middle; }
+@media (max-width: 900px) {
+    .sidebar { position: static; width: 100%; height: auto; }
+    .main-content { margin-left: 0; padding: 24px; }
+}
+</style>
+</head>
+<body>
+{% include 'layouts/sidebar.html' %}
+<main class="main-content">
+{% set active_page = 'Sales' %}
+{% include 'layouts/topbar.html' %}
+
+    <div class="row g-4 mb-4">
+        <div class="col-md-4">
+            <div class="metric-card">
+                <div class="metric-value">{{ total_orders }}</div>
+                <div class="metric-label">Total Sales Orders</div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="metric-card">
+                <div class="metric-value text-success">{{ total_revenue }}</div>
+                <div class="metric-label">Total Completed Revenue</div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="metric-card">
+                <div class="metric-value text-warning">{{ pending_orders }}</div>
+                <div class="metric-label">Pending Shipments</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        {% if session.get('role') in ['admin', 'manager'] or edit_order %}
+        <div class="col-xl-4">
+            <section class="section-panel">
+                <h4 class="mb-4">{{ "Edit Sales Order" if edit_order else "Create Sales Order" }}</h4>
+                <form method="POST" action="{{ url_for('sales.update_order', record_id=edit_order.id) if edit_order else url_for('sales.sales') }}">
+                    <div class="mb-3">
+                        <label class="form-label">Order Number</label>
+                        <input type="text" name="order_number" class="form-control" value="{{ edit_order.order_number if edit_order else '' }}" required placeholder="e.g., ORD-2026-001">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Customer Name</label>
+                        <input type="text" name="customer_name" class="form-control" value="{{ edit_order.customer_name if edit_order else '' }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Product</label>
+                        <select name="product_id" class="form-select" required>
+                            <option value="">Select Product...</option>
+                            {% for p in products %}
+                            <option value="{{ p.id }}" {% if edit_order and edit_order.product_id == p.id %}selected{% endif %}>
+                                {{ p.product_name }} (SKU: {{ p.sku }}) - ${{ p.unit_price }} [Stock: {{ p.quantity }}]
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Quantity</label>
+                        <input type="number" name="quantity" class="form-control" value="{{ edit_order.quantity if edit_order else 1 }}" required min="1">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Order Date</label>
+                        <input type="date" name="order_date" class="form-control" value="{{ edit_order.order_date if edit_order else today }}" required>
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label">Status</label>
+                        <select name="status" class="form-select">
+                            <option value="pending" {% if edit_order and edit_order.status == 'pending' %}selected{% endif %}>Pending</option>
+                            <option value="completed" {% if edit_order and edit_order.status == 'completed' %}selected{% endif %}>Completed</option>
+                            <option value="cancelled" {% if edit_order and edit_order.status == 'cancelled' %}selected{% endif %}>Cancelled</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-light w-100">Place Order</button>
+                    {% if edit_order %}
+                    <a href="/sales" class="btn btn-outline-light w-100 mt-2">Cancel</a>
+                    {% endif %}
+                </form>
+            </section>
+        </div>
+        {% endif %}
+
+        <div class="{% if session.get('role') in ['admin', 'manager'] or edit_order %}col-xl-8{% else %}col-xl-12{% endif %}">
+            <section class="section-panel">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h4 class="mb-0">Sales Orders Register</h4>
+                    <form method="GET" action="/sales" class="d-flex gap-2" style="max-width: 300px;">
+                        <input type="text" name="search" class="form-control min-vh-0 py-1 px-3" placeholder="Search order..." value="{{ search }}">
+                        <button type="submit" class="btn btn-outline-light btn-sm px-3">Search</button>
+                    </form>
+                </div>
+                <div class="table-responsive">
+                    <table class="table align-middle">
+                        <thead>
+                            <tr>
+                                <th>Order Number</th>
+                                <th>Customer Name</th>
+                                <th>Product</th>
+                                <th>Qty</th>
+                                <th>Total Amount</th>
+                                <th>Order Date</th>
+                                <th>Status</th>
+                                <th class="text-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for order in sales %}
+                            <tr>
+                                <td class="fw-bold">{{ order.order_number }}</td>
+                                <td>{{ order.customer_name }}</td>
+                                <td>{{ order.product_name or 'Unknown Product' }}</td>
+                                <td>{{ order.quantity }}</td>
+                                <td>${{ "{:,.2f}".format(order.total_amount) }}</td>
+                                <td><code>{{ order.order_date }}</code></td>
+                                <td>
+                                    <span style="font-size: 0.75rem; padding: 4px 8px; border-radius: 4px; background: {% if order.status == 'completed' %}#064e3b; color: #d1fae5{% elif order.status == 'pending' %}#78350f; color: #fef3c7{% else %}#450a0a; color: #fecaca{% endif %};">
+                                        {{ order.status|upper }}
+                                    </span>
+                                </td>
+                                <td class="text-end">
+                                    <div class="d-flex justify-content-end gap-2">
+                                        {% if session.get('role') in ['admin', 'manager'] %}
+                                        <a href="{{ url_for('sales.edit_order', record_id=order.id) }}" class="btn btn-sm btn-outline-light">Edit</a>
+                                        {% endif %}
+                                        {% if session.get('role') == 'admin' %}
+                                        <form method="POST" action="{{ url_for('sales.delete_order', record_id=order.id) }}" onsubmit="return confirm('Cancel this order and restore product stock?');">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger">Cancel</button>
+                                        </form>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                            {% if not sales %}
+                            <tr>
+                                <td colspan="8" class="text-center text-secondary py-4">No sales orders found.</td>
+                            </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+    </div>
+</main>
+</body>
+</html>
