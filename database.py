@@ -293,14 +293,15 @@ def seed_database():
     admin_hash = generate_password_hash("AdminSecurePassword123!")
     engi_hash = generate_password_hash("EngiTelemetryPass456!")
     
-    cursor.execute("""
+    placeholder = "%s" if is_postgres else "?"
+    cursor.execute(f"""
         INSERT INTO users (tenant_id, name, email, password_hash, role) 
-        VALUES (1, 'Gokul (Admin)', 'gokul@abc.com', ?, 'admin')
+        VALUES (1, 'Gokul (Admin)', 'gokul@abc.com', {placeholder}, 'admin')
     """, (admin_hash,))
     
-    cursor.execute("""
+    cursor.execute(f"""
         INSERT INTO users (tenant_id, name, email, password_hash, role) 
-        VALUES (1, 'Engineer Employee', 'engineer@abc.com', ?, 'employee')
+        VALUES (1, 'Engineer Employee', 'engineer@abc.com', {placeholder}, 'employee')
     """, (engi_hash,))
 
     # Seed Employees
