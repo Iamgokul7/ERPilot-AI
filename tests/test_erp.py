@@ -490,19 +490,25 @@ def test_notifications_mark_read(auth_client):
 
 
 # 9. AI Assistant Tests
-@patch("utils.ai_utils.client.models.generate_content")
-def test_ai_assistant_logging(mock_generate_content, auth_client):
-    class MockResponse:
-        text = "This is a mock AI response showing low stock products."
-    
-    mock_generate_content.return_value = MockResponse()
-    
-    response = auth_client.post("/ai-assistant/chat", json={
-        "message": "Show low stock products"
-    })
+
+@patch("utils.ai_utils.generate_ai_response")
+def test_ai_assistant_logging(mock_generate_ai_response, auth_client):
+
+    mock_generate_ai_response.return_value = (
+        "This is a mock AI response showing low stock products."
+    )
+
+    response = auth_client.post(
+        "/ai-assistant/chat",
+        json={
+            "message": "Show low stock products"
+        }
+    )
+
     assert response.status_code == 200
-    assert response.json["response"] == "This is a mock AI response showing low stock products."
-    
+    assert response.json["response"] == (
+        "This is a mock AI response showing low stock products."
+    )
     # Verify DB logging
     conn = get_connection()
     cursor = conn.cursor()
